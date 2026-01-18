@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search, Filter, Eye, FileText } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +36,7 @@ export default function Documents() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: documents = [] } = useQuery({
     queryKey: ["documents"],
@@ -92,23 +94,28 @@ export default function Documents() {
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Documents Modelo Legal</h1>
-        <Button
-          className="gap-1.5"
-          onClick={() => {
-            if (!selectedPropertyId) {
-              toast({ title: "Selectionnez un bien" });
-              return;
-            }
-            generateMutation.mutate({
-              template: "fiche_bien",
-              name: "Fiche bien",
-              property_id: Number(selectedPropertyId),
-            });
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Generer fiche
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button className="gap-1.5" onClick={() => navigate("/documents/new")}>
+            <Plus className="h-4 w-4" />
+            Nouveau
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!selectedPropertyId) {
+                toast({ title: "Selectionnez un bien" });
+                return;
+              }
+              generateMutation.mutate({
+                template: "fiche_bien",
+                name: "Fiche bien",
+                property_id: Number(selectedPropertyId),
+              });
+            }}
+          >
+            Generer fiche
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
