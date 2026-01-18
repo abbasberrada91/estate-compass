@@ -1,68 +1,111 @@
-import { useState } from "react";
-import { Plus, Search, Filter, Eye, MessageSquare, Check, X, ExternalLink } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Search, Filter, Eye, MessageSquare, Check, X, ExternalLink, Home } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { mockLeads, type Lead } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { convertLead, getLeads, updateLeadStatus } from "@/lib/api";
+import type { LeadRecord } from "@/lib/types";
+
+const LEAD_LABELS: Record<string, string> = {
+  A_CONTACTER: "A contacter",
+  CONTACTE: "Contacte",
+  REPONSE_RECUE: "Reponse recue",
+  OUI_PROPRIO: "Proprietaire OK",
+  NON: "Non",
+  ARCHIVE: "Archive",
+};
+
+const STATUS_VARIANTS: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
+  A_CONTACTER: "warning",
+  CONTACTE: "info",
+  REPONSE_RECUE: "info",
+  OUI_PROPRIO: "success",
+  NON: "default",
+  ARCHIVE: "default",
+};
 
 export default function ProspectionPije() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("nouveaux");
   const [platformTab, setPlatformTab] = useState("tous");
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const prevIdsRef = useRef<Set<number>>(new Set());
 
-  const nouveauxLeads = mockLeads.filter(l => l.statut === "a_contacter");
-  const aRelancerLeads = mockLeads.filter(l => l.statut === "a_relancer");
+  const { data: leadsData = [] } = useQuery({
+    queryKey: ["leads"],
+    queryFn: () => getLeads() as Promise<LeadRecord[]>,
+    refetchInterval: 30000,
+  });
 
-  const currentLeads = activeTab === "nouveaux" ? nouveauxLeads : aRelancerLeads;
+  useEffect(() => {
+    const ids = new Set(leadsData.map((lead) => lead.id));
+    if (prevIdsRef.current.size > 0) {
+      const newCount = leadsData.filter((lead) => !prevIdsRef.current.has(lead.id)).length;
+      if (newCount > 0) {
+        toast({
+          title: "Nouveau lead detecte",
+          description: `${newCount} nouveau(x) lead(s) disponible(s).`,
+        });
+      }
+    }
+    prevIdsRef.current = ids;
+  }, [leadsData, toast]);
+
+  const nouveauxLeads = useMemo(
+    () => leadsData.filter((lead) => lead.status === "A_CONTACTER"),
+    [leadsData]
+  );
+  const contactesLeads = useMemo(
+    () => leadsData.filter((lead) => lead.status === "CONTACTE"),
+    [leadsData]
+  );
+
+  const currentLeads = activeTab === "nouveaux" ? nouveauxLeads : contactesLeads;
 
   const filteredLeads = currentLeads.filter((lead) => {
-    const matchesSearch = 
-      lead.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.ville.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.titre.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPlatform = platformTab === "tous" || lead.plateformes.includes(platformTab as any);
+    const title = lead.title || "";
+    const city = lead.city || "";
+    const matchesSearch =
+      String(lead.listing_id).includes(searchQuery.toLowerCase()) ||
+      city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      title.toLowerCase().includes(searchQuery.toLowerCase());
+    const platform = lead.platform || "";
+    const matchesPlatform = platformTab === "tous" || platform === platformTab;
     return matchesSearch && matchesPlatform;
   });
 
-  const formatPrice = (price: number) => {
+  const groupedLeads = useMemo(() => {
+    if (activeTab !== "nouveaux") return [];
+    const groups = new Map<string, LeadRecord[]>();
+    filteredLeads.forEach((lead) => {
+      const platform = lead.platform || "autre";
+      const list = groups.get(platform) || [];
+      list.push(lead);
+      groups.set(platform, list);
+    });
+    return Array.from(groups.entries());
+  }, [activeTab, filteredLeads]);
+
+  const formatPrice = (price?: number | null) => {
+    if (!price) return "-";
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: "EUR",
       maximumFractionDigits: 0,
     }).format(price);
-  };
-
-  const getStatutLabel = (statut: Lead["statut"]) => {
-    const labels: Record<Lead["statut"], string> = {
-      a_contacter: "À contacter",
-      contacte: "Contacté",
-      a_relancer: "À relancer",
-      oui_proprietaire: "Propriétaire OK",
-      non: "Non",
-      cloture: "Clôturé",
-    };
-    return labels[statut];
-  };
-
-  const getStatutVariant = (statut: Lead["statut"]) => {
-    const variants: Record<Lead["statut"], "default" | "success" | "warning" | "info" | "error"> = {
-      a_contacter: "warning",
-      contacte: "info",
-      a_relancer: "pending" as any,
-      oui_proprietaire: "success",
-      non: "default",
-      cloture: "default",
-    };
-    return variants[statut];
   };
 
   const getPlatformBadge = (platform: string) => {
@@ -74,18 +117,31 @@ export default function ProspectionPije() {
     return styles[platform] || "bg-gray-100 text-gray-700";
   };
 
+  const handleMarkContacted = async (leadId: number) => {
+    await updateLeadStatus(leadId, "CONTACTE");
+  };
+
+  const handleMarkNo = async (leadId: number) => {
+    await updateLeadStatus(leadId, "NON");
+  };
+
+  const handleConvert = async (leadId: number) => {
+    await convertLead(leadId);
+    toast({ title: "Bien cree" });
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Prospection PIJE - Inbox</h1>
-        <Button className="gap-1.5">
+        <Button className="gap-1.5" onClick={() => navigate("/prospection/pije/new")}>
           <Plus className="h-4 w-4" />
           Nouvelle recherche
         </Button>
       </div>
 
-      {/* Main tabs: Nouveaux / À relancer */}
+      {/* Main tabs: Nouveaux / Contactes */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-80 grid-cols-2">
           <TabsTrigger value="nouveaux" className="gap-2">
@@ -94,10 +150,10 @@ export default function ProspectionPije() {
               {nouveauxLeads.length}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="relancer" className="gap-2">
-            À relancer
+          <TabsTrigger value="contactes" className="gap-2">
+            Contactes
             <span className="px-1.5 py-0.5 text-xs rounded-full bg-status-pending text-status-pending-foreground">
-              {aRelancerLeads.length}
+              {contactesLeads.length}
             </span>
           </TabsTrigger>
         </TabsList>
@@ -133,17 +189,15 @@ export default function ProspectionPije() {
       </div>
 
       {/* Results count */}
-      <div className="text-sm text-muted-foreground">
-        {filteredLeads.length} leads
-      </div>
+      <div className="text-sm text-muted-foreground">{filteredLeads.length} leads</div>
 
       {/* Table */}
       <div className="data-table">
         {/* Header */}
-        <div className="data-table-header grid grid-cols-[100px_200px_100px_1fr_100px_100px_100px_120px_auto] gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
+        <div className="data-table-header grid grid-cols-[100px_160px_100px_1fr_120px_100px_100px_120px_auto] gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
           <div>REF</div>
           <div>Recherche</div>
-          <div>Plateforme(s)</div>
+          <div>Plateforme</div>
           <div>Annonce</div>
           <div>Ville</div>
           <div>Prix</div>
@@ -154,99 +208,210 @@ export default function ProspectionPije() {
 
         {/* Body */}
         <div>
-          {filteredLeads.map((lead) => (
-            <div
-              key={lead.id}
-              className="data-table-row grid grid-cols-[100px_200px_100px_1fr_100px_100px_100px_120px_auto] gap-4 px-4 py-3 items-center"
-            >
-              {/* REF */}
-              <div className="font-medium text-primary">{lead.reference}</div>
-
-              {/* Recherche */}
-              <div className="text-sm text-muted-foreground">
-                Recherche #{lead.searchProfileId}
-              </div>
-
-              {/* Plateformes */}
-              <div className="flex flex-wrap gap-1">
-                {lead.plateformes.map((platform) => (
-                  <span
-                    key={platform}
-                    className={cn(
-                      "px-1.5 py-0.5 text-[10px] uppercase font-medium rounded border",
-                      getPlatformBadge(platform)
-                    )}
+          {activeTab === "nouveaux" ? (
+            groupedLeads.map(([platform, leads]) => (
+              <div key={platform}>
+                <div className="px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground bg-muted/40">
+                  {platform}
+                </div>
+                {leads.map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="data-table-row grid grid-cols-[100px_160px_100px_1fr_120px_100px_100px_120px_auto] gap-4 px-4 py-3 items-center"
                   >
-                    {platform}
-                  </span>
+                    {/* REF */}
+                    <div className="font-medium text-primary">L-{lead.id}</div>
+
+                    {/* Recherche */}
+                    <div className="text-sm text-muted-foreground">
+                      Recherche #{lead.listing_id}
+                    </div>
+
+                    {/* Plateforme */}
+                    <div className="flex flex-wrap gap-1">
+                      <span
+                        className={cn(
+                          "px-1.5 py-0.5 text-[10px] uppercase font-medium rounded border",
+                          getPlatformBadge(lead.platform || "")
+                        )}
+                      >
+                        {lead.platform || "-"}
+                      </span>
+                    </div>
+
+                    {/* Annonce */}
+                    <div>
+                      <div className="font-medium text-sm line-clamp-1">{lead.title || "Annonce"}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-1">
+                        {(lead.rooms || "-")} pieces • {(lead.surface || "-")} m²
+                      </div>
+                    </div>
+
+                    {/* Ville */}
+                    <div className="text-sm">
+                      {lead.city || "-"}
+                      <div className="text-xs text-muted-foreground">{lead.postal_code || ""}</div>
+                    </div>
+
+                    {/* Prix */}
+                    <div className="font-medium">{formatPrice(lead.price)}</div>
+
+                    {/* Surface */}
+                    <div className="text-sm">{lead.surface ? `${lead.surface} m²` : "-"}</div>
+
+                    {/* Statut */}
+                    <div>
+                      <StatusBadge variant={STATUS_VARIANTS[lead.status] || "default"}>
+                        {LEAD_LABELS[lead.status] || lead.status}
+                      </StatusBadge>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-status-success"
+                        onClick={() => handleMarkContacted(lead.id)}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-status-error"
+                        onClick={() => handleMarkNo(lead.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      {lead.url && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => window.open(lead.url || "", "_blank")}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleConvert(lead.id)}
+                        title="Transformer en bien"
+                      >
+                        <Home className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
+            ))
+          ) : (
+            filteredLeads.map((lead) => (
+              <div
+                key={lead.id}
+                className="data-table-row grid grid-cols-[100px_160px_100px_1fr_120px_100px_100px_120px_auto] gap-4 px-4 py-3 items-center"
+              >
+                {/* REF */}
+                <div className="font-medium text-primary">L-{lead.id}</div>
 
-              {/* Annonce */}
-              <div>
-                <div className="font-medium text-sm line-clamp-1">{lead.titre}</div>
-                <div className="text-xs text-muted-foreground line-clamp-1">
-                  {lead.pieces} pièces • {lead.surface} m²
+                {/* Recherche */}
+                <div className="text-sm text-muted-foreground">Recherche #{lead.listing_id}</div>
+
+                {/* Plateforme */}
+                <div className="flex flex-wrap gap-1">
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 text-[10px] uppercase font-medium rounded border",
+                      getPlatformBadge(lead.platform || "")
+                    )}
+                  >
+                    {lead.platform || "-"}
+                  </span>
+                </div>
+
+                {/* Annonce */}
+                <div>
+                  <div className="font-medium text-sm line-clamp-1">{lead.title || "Annonce"}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">
+                    {(lead.rooms || "-")} pieces • {(lead.surface || "-")} m²
+                  </div>
+                </div>
+
+                {/* Ville */}
+                <div className="text-sm">
+                  {lead.city || "-"}
+                  <div className="text-xs text-muted-foreground">{lead.postal_code || ""}</div>
+                </div>
+
+                {/* Prix */}
+                <div className="font-medium">{formatPrice(lead.price)}</div>
+
+                {/* Surface */}
+                <div className="text-sm">{lead.surface ? `${lead.surface} m²` : "-"}</div>
+
+                {/* Statut */}
+                <div>
+                  <StatusBadge variant={STATUS_VARIANTS[lead.status] || "default"}>
+                    {LEAD_LABELS[lead.status] || lead.status}
+                  </StatusBadge>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5">
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-status-success"
+                    onClick={() => handleMarkContacted(lead.id)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-status-error"
+                    onClick={() => handleMarkNo(lead.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  {lead.url && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => window.open(lead.url || "", "_blank")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleConvert(lead.id)}
+                    title="Transformer en bien"
+                  >
+                    <Home className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-
-              {/* Ville */}
-              <div className="text-sm">
-                {lead.ville}
-                <div className="text-xs text-muted-foreground">{lead.codePostal}</div>
-              </div>
-
-              {/* Prix */}
-              <div className="font-medium">{formatPrice(lead.prix)}</div>
-
-              {/* Surface */}
-              <div className="text-sm">{lead.surface} m²</div>
-
-              {/* Statut */}
-              <div>
-                <StatusBadge variant={getStatutVariant(lead.statut)}>
-                  {getStatutLabel(lead.statut)}
-                </StatusBadge>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Préparer message IA">
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-status-success" title="OUI Propriétaire">
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Non / Clôturer">
-                  <X className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir l'annonce">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredLeads.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">
-            Aucun lead trouvé
-          </div>
-        )}
-
-        {/* Pagination */}
-        <div className="flex items-center justify-center gap-4 px-4 py-3 border-t border-border text-sm text-muted-foreground">
-          <span>Page 1/1</span>
-          <Select defaultValue="20">
-            <SelectTrigger className="w-24 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 résultats</SelectItem>
-              <SelectItem value="20">20 résultats</SelectItem>
-              <SelectItem value="50">50 résultats</SelectItem>
-            </SelectContent>
-          </Select>
+            ))
+          )}
         </div>
       </div>
     </div>

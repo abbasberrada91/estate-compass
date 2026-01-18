@@ -1,31 +1,80 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Search, Filter, Eye, Edit2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { mockAffaires, getAffaireStatutLabel, getBienById, getContactById, type Affaire } from "@/data/mockData";
+import { getAffairs, getContacts, getProperties } from "@/lib/api";
+import type { Affair, Contact, Property } from "@/lib/types";
+
+const affaireStatusLabels: Record<string, string> = {
+  en_cours: "En cours",
+  sous_compromis: "Sous compromis",
+  sous_acte: "Sous acte",
+  finalisee: "Finalisee",
+  annulee: "Annulee",
+};
+
+const affaireStatusVariants: Record<string, "default" | "success" | "warning" | "info" | "error"> = {
+  en_cours: "info",
+  sous_compromis: "warning",
+  sous_acte: "info",
+  finalisee: "success",
+  annulee: "error",
+};
 
 export default function Affaires() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statutFilter, setStatutFilter] = useState<string>("all");
   const [operationFilter, setOperationFilter] = useState<string>("all");
 
-  const filteredAffaires = mockAffaires.filter((affaire) => {
-    const bien = getBienById(affaire.bienId);
-    const matchesSearch = bien?.reference.toLowerCase().includes(searchQuery.toLowerCase()) || false;
-    const matchesStatut = statutFilter === "all" || affaire.statut === statutFilter;
-    const matchesOperation = operationFilter === "all" || affaire.operation === operationFilter;
-    return matchesSearch && matchesStatut && matchesOperation;
+  const { data: affairs = [] } = useQuery({
+    queryKey: ["affairs"],
+    queryFn: () => getAffairs() as Promise<Affair[]>,
+  });
+  const { data: properties = [] } = useQuery({
+    queryKey: ["properties"],
+    queryFn: () => getProperties() as Promise<Property[]>,
+  });
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => getContacts() as Promise<Contact[]>,
   });
 
-  const formatPrice = (price: number) => {
+  const propertyById = useMemo(() => {
+    const map = new Map<number, Property>();
+    properties.forEach((item) => map.set(item.id, item));
+    return map;
+  }, [properties]);
+
+  const contactById = useMemo(() => {
+    const map = new Map<number, Contact>();
+    contacts.forEach((item) => map.set(item.id, item));
+    return map;
+  }, [contacts]);
+
+  const filteredAffaires = useMemo(() => {
+    return affairs.filter((affaire) => {
+      const property = affaire.property_id ? propertyById.get(affaire.property_id) : undefined;
+      const ref = property?.reference || "";
+      const matchesSearch = ref.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatut = statutFilter === "all" || affaire.status === statutFilter;
+      const matchesOperation = operationFilter === "all" || affaire.operation === operationFilter;
+      return matchesSearch && matchesStatut && matchesOperation;
+    });
+  }, [affairs, propertyById, searchQuery, statutFilter, operationFilter]);
+
+  const formatPrice = (price?: number | null) => {
+    if (!price) return "-";
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: "EUR",
@@ -33,23 +82,12 @@ export default function Affaires() {
     }).format(price);
   };
 
-  const getStatutVariant = (statut: Affaire["statut"]) => {
-    const variants: Record<Affaire["statut"], "default" | "success" | "warning" | "info" | "error"> = {
-      en_cours: "info",
-      sous_compromis: "warning",
-      sous_acte: "pending" as any,
-      finalisee: "success",
-      annulee: "error",
-    };
-    return variants[statut];
-  };
-
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Registre des affaires</h1>
-        <Button className="gap-1.5">
+        <Button className="gap-1.5" onClick={() => navigate("/affaires/new")}>
           <Plus className="h-4 w-4" />
           Nouveau
         </Button>
@@ -59,15 +97,15 @@ export default function Affaires() {
       <div className="filter-bar">
         <Select value={statutFilter} onValueChange={setStatutFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="État" />
+            <SelectValue placeholder="Etat" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous</SelectItem>
             <SelectItem value="en_cours">En cours</SelectItem>
             <SelectItem value="sous_compromis">Sous compromis</SelectItem>
             <SelectItem value="sous_acte">Sous acte</SelectItem>
-            <SelectItem value="finalisee">Finalisée</SelectItem>
-            <SelectItem value="annulee">Annulée</SelectItem>
+            <SelectItem value="finalisee">Finalisee</SelectItem>
+            <SelectItem value="annulee">Annulee</SelectItem>
           </SelectContent>
         </Select>
 
@@ -112,7 +150,7 @@ export default function Affaires() {
             <SelectContent>
               <SelectItem value="date">Date</SelectItem>
               <SelectItem value="montant">Montant</SelectItem>
-              <SelectItem value="statut">État</SelectItem>
+              <SelectItem value="statut">Etat</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -122,46 +160,44 @@ export default function Affaires() {
       <div className="data-table">
         {/* Header */}
         <div className="data-table-header grid grid-cols-[100px_1fr_1fr_1fr_120px_120px_140px_120px_auto] gap-4 px-4 py-3 text-sm font-medium text-muted-foreground">
-          <div>Opération</div>
-          <div>Nature et situation du bien</div>
+          <div>Operation</div>
+          <div>Bien</div>
           <div>Vendeur(s)/Bailleur(s)</div>
-          <div>Acquéreur(s)/Locataire(s)</div>
+          <div>Acquereur(s)/Locataire(s)</div>
           <div>Montant</div>
           <div>Honoraires</div>
           <div>Conditions Susp.</div>
-          <div>État</div>
+          <div>Etat</div>
           <div></div>
         </div>
 
         {/* Body */}
         <div>
           {filteredAffaires.map((affaire) => {
-            const bien = getBienById(affaire.bienId);
-            const vendeur = getContactById(affaire.vendeurId);
-            const acquereur = getContactById(affaire.acquereurId);
+            const property = affaire.property_id ? propertyById.get(affaire.property_id) : undefined;
+            const seller = affaire.seller_contact_id ? contactById.get(affaire.seller_contact_id) : undefined;
+            const buyer = affaire.buyer_contact_id ? contactById.get(affaire.buyer_contact_id) : undefined;
 
             return (
               <div
                 key={affaire.id}
                 className="data-table-row grid grid-cols-[100px_1fr_1fr_1fr_120px_120px_140px_120px_auto] gap-4 px-4 py-3 items-center"
               >
-                {/* Opération */}
+                {/* Operation */}
                 <div className="flex items-center gap-2">
-                  <div className="avatar-badge">
-                    {affaire.operation === "vente" ? "V" : "L"}
-                  </div>
-                  <span className="capitalize text-sm">{affaire.operation}</span>
+                  <div className="avatar-badge">{affaire.operation === "vente" ? "V" : "L"}</div>
+                  <span className="capitalize text-sm">{affaire.operation || "-"}</span>
                 </div>
 
                 {/* Bien */}
                 <div>
-                  {bien && (
+                  {property && (
                     <>
                       <StatusBadge variant="outline" className="bg-accent/10 text-accent border-accent/20 mb-1">
-                        {bien.reference}
+                        {property.reference || `Bien #${property.id}`}
                       </StatusBadge>
                       <div className="text-sm text-muted-foreground">
-                        {bien.type} {bien.pieces} pièces, {bien.codePostal} {bien.ville}
+                        {property.type || "-"} {property.rooms || "-"} pieces, {property.postal_code || ""} {property.city || ""}
                       </div>
                     </>
                   )}
@@ -169,39 +205,33 @@ export default function Affaires() {
 
                 {/* Vendeur */}
                 <div>
-                  {vendeur && (
+                  {seller && (
                     <StatusBadge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                      {vendeur.prenom} {vendeur.nom}
+                      {seller.first_name} {seller.last_name}
                     </StatusBadge>
                   )}
                 </div>
 
-                {/* Acquéreur */}
+                {/* Acquereur */}
                 <div className="text-sm">
-                  {acquereur && (
-                    <span>{acquereur.prenom} {acquereur.nom}</span>
-                  )}
+                  {buyer && <span>{buyer.first_name} {buyer.last_name}</span>}
                 </div>
 
                 {/* Montant */}
-                <div className="font-medium">
-                  {formatPrice(affaire.montant)}
-                </div>
+                <div className="font-medium">{formatPrice(affaire.amount)}</div>
 
                 {/* Honoraires */}
-                <div className="text-sm">
-                  {formatPrice(affaire.honoraires)}
-                </div>
+                <div className="text-sm">{formatPrice(affaire.fees)}</div>
 
-                {/* Conditions suspensives */}
+                {/* Conditions */}
                 <div className="text-sm text-muted-foreground">
-                  {affaire.conditionsSuspensives || "—"}
+                  {affaire.conditions || "-"}
                 </div>
 
-                {/* État */}
+                {/* Etat */}
                 <div>
-                  <StatusBadge variant={getStatutVariant(affaire.statut)}>
-                    {getAffaireStatutLabel(affaire.statut)}
+                  <StatusBadge variant={affaireStatusVariants[affaire.status || ""] || "default"}>
+                    {affaireStatusLabels[affaire.status || ""] || affaire.status || "-"}
                   </StatusBadge>
                 </div>
 
@@ -217,21 +247,6 @@ export default function Affaires() {
               </div>
             );
           })}
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-center gap-4 px-4 py-3 border-t border-border text-sm text-muted-foreground">
-          <span>Page 1/1</span>
-          <Select defaultValue="20">
-            <SelectTrigger className="w-24 h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 résultats</SelectItem>
-              <SelectItem value="20">20 résultats</SelectItem>
-              <SelectItem value="50">50 résultats</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
     </div>

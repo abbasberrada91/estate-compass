@@ -1,47 +1,78 @@
-import { 
-  Home, 
-  Users, 
-  FileText, 
-  TrendingUp, 
+import {
+  Home,
+  Users,
+  TrendingUp,
   Calendar,
   Clock,
   AlertCircle,
   ChevronRight,
-  Activity
+  Activity,
+  Search,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { mockBiens, mockDocuments, mockAffaires, mockContacts, getContactById, getBienById } from "@/data/mockData";
+import { getDocuments, getLeads, getListings, getProperties, getTasks, getSearchProfiles } from "@/lib/api";
+import type { DocumentRecord, LeadRecord, Listing, Property, SearchProfile, Task } from "@/lib/types";
 
 export default function Dashboard() {
-  // Calculate stats
-  const biensEnLigne = mockBiens.filter(b => b.enLigne).length;
-  const biensTotal = mockBiens.length;
-  const affairesEnCours = mockAffaires.filter(a => a.statut !== "finalisee" && a.statut !== "annulee").length;
-  const documentsEnAttente = mockDocuments.filter(d => d.statut === "signature_en_cours").length;
+  const { data: properties = [], isLoading: propertiesLoading } = useQuery({
+    queryKey: ["properties"],
+    queryFn: () => getProperties() as Promise<Property[]>,
+  });
+  const { data: listings = [], isLoading: listingsLoading } = useQuery({
+    queryKey: ["listings"],
+    queryFn: () => getListings() as Promise<Listing[]>,
+  });
+  const { data: searchProfiles = [], isLoading: searchProfilesLoading } = useQuery({
+    queryKey: ["search-profiles"],
+    queryFn: () => getSearchProfiles() as Promise<SearchProfile[]>,
+  });
+  const { data: documents = [], isLoading: documentsLoading } = useQuery({
+    queryKey: ["documents"],
+    queryFn: () => getDocuments() as Promise<DocumentRecord[]>,
+  });
+  const { data: leads = [], isLoading: leadsLoading } = useQuery({
+    queryKey: ["leads"],
+    queryFn: () => getLeads() as Promise<LeadRecord[]>,
+  });
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => getTasks() as Promise<Task[]>,
+  });
 
-  // Recent activity
+  const biensTotal = properties.length;
+  const biensEnLigne = properties.filter((item) => item.online).length;
+  const listingsTotal = listings.length;
+  const recherchesTotal = searchProfiles.length;
+  const leadsTotal = leads.length;
+  const leadsContactes = leads.filter((lead) => lead.status === "CONTACTE").length;
+  const leadsOuiProprio = leads.filter((lead) => lead.status === "OUI_PROPRIO").length;
+  const documentsEnAttente = documents.filter((item) => item.status === "signature_en_cours").length;
+  const isStatsLoading = propertiesLoading || leadsLoading || listingsLoading || searchProfilesLoading;
+
   const recentActivity = [
     {
       id: "1",
-      user: "Léna Pujol",
-      action: "a effectué un changement de prix sur le bien",
+      user: "Lena Pujol",
+      action: "a effectue un changement de prix sur le bien",
       target: "VA3129",
-      details: "Il est passé de 675 000 € à 598 000 €",
+      details: "Il est passe de 675 000 EUR a 598 000 EUR",
       time: "Il y a 2h",
     },
     {
-      id: "2", 
-      user: "Léna Pujol",
-      action: "a désactivé la multidiffusion sur le bien",
+      id: "2",
+      user: "Lena Pujol",
+      action: "a desactive la multidiffusion sur le bien",
       target: "VA3176",
       time: "Il y a 3h",
     },
     {
       id: "3",
-      user: "Léna Pujol",
-      action: "a activé la multidiffusion sur le bien",
+      user: "Lena Pujol",
+      action: "a active la multidiffusion sur le bien",
       target: "VA3176",
       time: "Il y a 4h",
     },
@@ -53,11 +84,11 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Bonjour Abbas !</h1>
         <div className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString("fr-FR", { 
-            weekday: "long", 
-            year: "numeric", 
-            month: "long", 
-            day: "numeric" 
+          {new Date().toLocaleDateString("fr-FR", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
           })}
         </div>
       </div>
@@ -67,60 +98,155 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Biens en ligne
+              Leads
             </CardTitle>
-            <Home className="h-4 w-4 text-muted-foreground" />
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{biensEnLigne}</div>
-            <p className="text-xs text-muted-foreground">
-              sur {biensTotal} biens au total
-            </p>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{leadsTotal}</div>
+                <p className="text-xs text-muted-foreground">total en base</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Contacts
+              Contactes
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockContacts.length}</div>
-            <p className="text-xs text-muted-foreground">
-              +2 cette semaine
-            </p>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{leadsContactes}</div>
+                <p className="text-xs text-muted-foreground">leads contactes</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Affaires en cours
+              Oui proprio
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{affairesEnCours}</div>
-            <p className="text-xs text-muted-foreground">
-              1 sous compromis
-            </p>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{leadsOuiProprio}</div>
+                <p className="text-xs text-muted-foreground">leads qualifies</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Documents en attente
+              Biens crees
             </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <Home className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{documentsEnAttente}</div>
-            <p className="text-xs text-muted-foreground">
-              signatures en cours
-            </p>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{biensTotal}</div>
+                <p className="text-xs text-muted-foreground">dans le portefeuille</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* PIJE summary */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Recherches
+            </CardTitle>
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{recherchesTotal}</div>
+                <p className="text-xs text-muted-foreground">profils actifs</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Leads
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{leadsTotal}</div>
+                <p className="text-xs text-muted-foreground">total</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Listings
+            </CardTitle>
+            <Home className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{listingsTotal}</div>
+                <p className="text-xs text-muted-foreground">annonces detectees</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -141,25 +267,25 @@ export default function Dashboard() {
                 <span className="w-8 h-8 rounded-full bg-status-success text-status-success-foreground flex items-center justify-center text-sm font-medium">
                   {biensEnLigne}
                 </span>
-                <span className="text-sm">publiés</span>
+                <span className="text-sm">publies</span>
               </div>
-              <StatusBadge variant="info">99+</StatusBadge>
+              <StatusBadge variant="info">{biensTotal}</StatusBadge>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border">
               <div className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                  27
+                  {biensTotal}
                 </span>
-                <span className="text-sm">diffusés</span>
+                <span className="text-sm">diffuses</span>
               </div>
-              <StatusBadge variant="info">99+</StatusBadge>
+              <StatusBadge variant="info">{biensTotal}</StatusBadge>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border">
               <div className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-full bg-status-warning text-status-warning-foreground flex items-center justify-center text-sm font-medium">
                   0
                 </span>
-                <span className="text-sm">Mandats arrivant à expiration</span>
+                <span className="text-sm">Mandats arrivant a expiration</span>
               </div>
             </div>
             <div className="flex items-center justify-between py-2">
@@ -167,7 +293,7 @@ export default function Dashboard() {
                 <span className="w-8 h-8 rounded-full bg-status-error text-status-error-foreground flex items-center justify-center text-sm font-medium">
                   0
                 </span>
-                <span className="text-sm">Mandats expirés à clôturer</span>
+                <span className="text-sm">Mandats expires a cloturer</span>
               </div>
             </div>
           </CardContent>
@@ -178,12 +304,15 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
               <Activity className="h-4 w-4" />
-              Flux d'activité
+              Flux d'activite
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex gap-3 pb-4 border-b border-border last:border-0 last:pb-0">
+              <div
+                key={activity.id}
+                className="flex gap-3 pb-4 border-b border-border last:border-0 last:pb-0"
+              >
                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium shrink-0">
                   LP
                 </div>
@@ -215,7 +344,13 @@ export default function Dashboard() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Calendar className="h-12 w-12 text-muted-foreground/50 mb-3" />
               <p className="text-sm text-muted-foreground">
-                Aucune tâche planifiée aujourd'hui
+                {tasksLoading ? (
+                  <Skeleton className="h-4 w-48 mx-auto" />
+                ) : tasks.length ? (
+                  `${tasks.length} tache(s) planifiee(s)`
+                ) : (
+                  "Aucune tache planifiee aujourd'hui"
+                )}
               </p>
             </div>
           </CardContent>
@@ -237,25 +372,33 @@ export default function Dashboard() {
                 <span className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-medium">
                   0
                 </span>
-                <span className="text-sm">Visites planifiées</span>
+                <span className="text-sm">Visites planifiees</span>
               </div>
-              <span className="text-sm text-muted-foreground">0 effectuées</span>
+              <Link to="/agenda" className="text-xs text-primary flex items-center gap-1">
+                Voir <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-medium">
                   0
                 </span>
-                <span className="text-sm">Acquéreurs enregistrés</span>
+                <span className="text-sm">Rendez-vous prospect</span>
               </div>
+              <Link to="/agenda" className="text-xs text-primary flex items-center gap-1">
+                Voir <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-medium">
                   0
                 </span>
-                <span className="text-sm">Propositions effectuées</span>
+                <span className="text-sm">Rappels</span>
               </div>
+              <Link to="/taches" className="text-xs text-primary flex items-center gap-1">
+                Voir <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -264,41 +407,31 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <AlertCircle className="h-4 w-4" />
-              À suivre et finaliser
+              A surveiller
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-medium">
+                <span className="w-8 h-8 rounded-full bg-status-warning text-status-warning-foreground flex items-center justify-center text-sm font-medium">
                   0
                 </span>
-                <span className="text-sm">Comptes rendus de visite à saisir</span>
+                <span className="text-sm">Mandats a renouveler</span>
               </div>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-status-info text-status-info-foreground flex items-center justify-center text-sm font-medium">
-                  3
-                </span>
-                <span className="text-sm">Compromis en cours</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-status-warning text-status-warning-foreground flex items-center justify-center text-sm font-medium">
-                  1
-                </span>
-                <span className="text-sm">Offres d'achat en cours</span>
-              </div>
+              <Link to="/documents" className="text-xs text-primary flex items-center gap-1">
+                Voir <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-full bg-status-error text-status-error-foreground flex items-center justify-center text-sm font-medium">
-                  4
+                  {documentsEnAttente}
                 </span>
-                <span className="text-sm">Mandats non reçus</span>
+                <span className="text-sm">Documents en attente</span>
               </div>
+              <Link to="/documents" className="text-xs text-primary flex items-center gap-1">
+                Voir <ChevronRight className="h-3 w-3" />
+              </Link>
             </div>
           </CardContent>
         </Card>

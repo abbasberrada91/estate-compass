@@ -1,4 +1,5 @@
 import { Bell, MessageSquare, Plus, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +15,12 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onOpenAssistant }: AppHeaderProps) {
+  const navigate = useNavigate();
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
+
   return (
     <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4">
       {/* Left side - breadcrumb or page context */}
@@ -34,11 +41,15 @@ export function AppHeader({ onOpenAssistant }: AppHeaderProps) {
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel>Créer</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Nouveau bien</DropdownMenuItem>
-            <DropdownMenuItem>Nouveau contact</DropdownMenuItem>
-            <DropdownMenuItem>Nouveau mandat</DropdownMenuItem>
-            <DropdownMenuItem>Nouvelle affaire</DropdownMenuItem>
-            <DropdownMenuItem>Nouveau document</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleNavigate("/biens/new")}>Nouveau bien</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleNavigate("/contacts/new")}>Nouveau contact</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleNavigate("/prospection/pije/new")}>
+              Nouvelle recherche
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleNavigate("/affaires/new")}>Nouvelle affaire</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleNavigate("/documents/new")}>
+              Nouveau document (mandat)
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
