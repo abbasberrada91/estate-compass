@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Search, Filter, List, Grid, Eye, MapPin, Maximize2, Pencil, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +12,18 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { mockBiens, getContactById, getBienStatutLabel, type Bien } from "@/data/mockData";
+import { mockBiens, getContactById, getBienStatutLabel, updateBien, type Bien } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 
 export default function Biens() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [operationFilter, setOperationFilter] = useState<string>("all");
   const [statutFilter, setStatutFilter] = useState<string>("all");
+  const [publishState, setPublishState] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(mockBiens.map((b) => [b.id, b.enLigne]))
+  );
 
   const filteredBiens = mockBiens.filter((bien) => {
     const matchesSearch = 
@@ -48,6 +53,12 @@ export default function Biens() {
       archive: "default",
     };
     return variants[statut];
+  };
+
+  const handleTogglePublish = (bienId: string) => {
+    const newValue = !publishState[bienId];
+    updateBien(bienId, { enLigne: newValue });
+    setPublishState((prev) => ({ ...prev, [bienId]: newValue }));
   };
 
   return (
@@ -241,9 +252,9 @@ export default function Biens() {
                 <div>
                   <span className={cn(
                     "text-sm",
-                    bien.enLigne ? "text-status-success" : "text-muted-foreground"
+                    publishState[bien.id] ? "text-status-success" : "text-muted-foreground"
                   )}>
-                    {bien.enLigne ? "Oui" : "Non"}
+                    {publishState[bien.id] ? "Oui" : "Non"}
                   </span>
                 </div>
 
@@ -264,14 +275,32 @@ export default function Biens() {
                   <span className="w-6 h-6 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">
                     0
                   </span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voir le bien">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Voir le bien"
+                    onClick={() => navigate(`/biens/${bien.id}`)}
+                  >
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Modifier le bien">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Modifier le bien"
+                    onClick={() => navigate(`/biens/${bien.id}?edit=true`)}
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Publier le bien">
-                    <Globe className="h-4 w-4" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={publishState[bien.id] ? "Dépublier le bien" : "Publier le bien"}
+                    onClick={() => handleTogglePublish(bien.id)}
+                  >
+                    <Globe className={cn("h-4 w-4", publishState[bien.id] && "text-primary")} />
                   </Button>
                 </div>
               </div>
