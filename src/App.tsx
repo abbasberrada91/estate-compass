@@ -8,6 +8,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Contacts from "@/pages/Contacts";
 import Biens from "@/pages/Biens";
+import BienDetail from "@/pages/BienDetail";
 import Documents from "@/pages/Documents";
 import Affaires from "@/pages/Affaires";
 import ProspectionPije from "@/pages/ProspectionPije";
@@ -42,7 +43,7 @@ const App = () => (
             {/* Biens */}
             <Route path="/biens" element={<Biens />} />
             <Route path="/biens/nouveau" element={<Placeholder />} />
-            <Route path="/biens/:id" element={<Placeholder />} />
+            <Route path="/biens/:id" element={<BienDetail />} />
             
             {/* Contacts */}
             <Route path="/contacts" element={<Contacts />} />

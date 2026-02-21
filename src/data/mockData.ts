@@ -386,6 +386,13 @@ export function getBienById(id: string): Bien | undefined {
   return mockBiens.find(b => b.id === id);
 }
 
+export function updateBien(id: string, updates: Partial<Omit<Bien, "id" | "reference" | "createdAt">>): boolean {
+  const bien = mockBiens.find(b => b.id === id);
+  if (!bien) return false;
+  Object.assign(bien, { ...updates, updatedAt: new Date() });
+  return true;
+}
+
 export function getContactTypeLabel(type: Contact["type"]): string {
   const labels: Record<Contact["type"], string> = {
     proprietaire: "Propriétaire",
