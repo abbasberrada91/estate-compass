@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Filter, List, Grid, Eye, MapPin, Maximize2 } from "lucide-react";
+import { Plus, Search, Filter, List, Grid, Eye, MapPin, Maximize2, Pencil, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -264,8 +264,14 @@ export default function Biens() {
                   <span className="w-6 h-6 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">
                     0
                   </span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voir le bien">
                     <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Modifier le bien">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Publier le bien">
+                    <Globe className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
