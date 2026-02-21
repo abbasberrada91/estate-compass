@@ -21,6 +21,17 @@
 
   <body>
     <div id="root"></div>
+    <!-- GitHub Pages SPA routing: restore path from redirect -->
+    <script>
+      (function () {
+        var sp = new URLSearchParams(window.location.search);
+        var p = sp.get('p');
+        if (p) {
+          var hash = sp.get('hash');
+          window.history.replaceState(null, null, p + (hash ? '#' + hash : ''));
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Estate Compass</title>
+    <script>
+      // NOTE: The repo name '/estate-compass' must match the `base` set in vite.config.ts.
+      // GitHub Pages SPA redirect: redirect deep links back to index.html with path as query param.
+      var repo = '/estate-compass';
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        repo + '/?p=' + encodeURIComponent(l.pathname.slice(repo.length) + l.search) +
+        (l.hash ? '&hash=' + l.hash.slice(1) : '')
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
