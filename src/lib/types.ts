@@ -8,6 +8,18 @@ export interface SearchProfile {
   updated_at: string;
 }
 
+export interface SearchRecord {
+  id: number;
+  kind: string;
+  name: string;
+  query_json: string | Record<string, unknown>;
+  active: number;
+  status?: string | null;
+  last_run_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Listing {
   id: number;
   platform: string;

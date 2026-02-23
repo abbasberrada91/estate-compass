@@ -40,11 +40,16 @@ const navigation: NavItem[] = [
     title: "Prospection",
     icon: Search,
     children: [
-      { title: "PIJE (Particuliers)", href: "/prospection/pije", icon: Target },
-      { title: "CONQ (Agences)", href: "/prospection/conq", icon: Building2 },
-      { title: "Recherches", href: "/prospection/recherches", icon: Search, badge: "100" },
+      { title: "PIJE (Particuliers)", href: "/recherches?mode=pije", icon: Target },
+      { title: "CONQ (Agences)", href: "/recherches?mode=conq", icon: Building2 },
+      { title: "Recherches", href: "/recherches", icon: Search, badge: "100" },
       { title: "Inbox", href: "/prospection/inbox", icon: Inbox },
     ],
+  },
+  {
+    title: "Recherches",
+    href: "/recherches",
+    icon: Search,
   },
   {
     title: "Biens",

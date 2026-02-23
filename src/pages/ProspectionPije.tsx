@@ -130,6 +130,21 @@ export default function ProspectionPije() {
     toast({ title: "Bien cree" });
   };
 
+  const handleCopyMessage = async (lead: LeadRecord) => {
+    const message = [
+      "Bonjour,",
+      `Je vous contacte au sujet de votre annonce${lead.title ? ` \"${lead.title}\"` : ""}.`,
+      "Je suis interesse(e) et disponible pour une visite.",
+      "Pouvez-vous me confirmer la disponibilite du bien ?",
+    ].join(" ");
+    try {
+      await navigator.clipboard.writeText(message);
+      toast({ title: "Message copie" });
+    } catch (_error) {
+      toast({ title: "Copie impossible", description: "Veuillez copier manuellement." });
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
@@ -271,7 +286,12 @@ export default function ProspectionPije() {
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleCopyMessage(lead)}
+                      >
                         <MessageSquare className="h-4 w-4" />
                       </Button>
                       <Button
@@ -370,7 +390,12 @@ export default function ProspectionPije() {
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleCopyMessage(lead)}
+                  >
                     <MessageSquare className="h-4 w-4" />
                   </Button>
                   <Button

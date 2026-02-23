@@ -11,14 +11,16 @@ import Biens from "@/pages/Biens";
 import BienDetail from "@/pages/BienDetail";
 import Documents from "@/pages/Documents";
 import Affaires from "@/pages/Affaires";
-import ProspectionPije from "@/pages/ProspectionPije";
 import Recherches from "@/pages/Recherches";
 import QueueActions from "@/pages/QueueActions";
 import NewProperty from "@/pages/NewProperty";
 import NewContact from "@/pages/NewContact";
-import NewSearchProfile from "@/pages/NewSearchProfile";
 import NewAffair from "@/pages/NewAffair";
 import NewDocument from "@/pages/NewDocument";
+import SearchResults from "@/pages/SearchResults";
+import RecherchesModule from "@/pages/RecherchesModule";
+import RecherchesNew from "@/pages/RecherchesNew";
+import EditSearch from "@/pages/EditSearch";
 import Placeholder from "@/pages/Placeholder";
 import NotFound from "@/pages/NotFound";
 
@@ -33,6 +35,10 @@ const App = () => (
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/dashboard/orchestration"
+            element={<Navigate to="http://127.0.0.1:5000/dashboard/orchestration" replace />}
+          />
           
           {/* Redirect root to dashboard */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -42,11 +48,17 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             
             {/* Prospection */}
-            <Route path="/prospection/pije" element={<ProspectionPije />} />
-            <Route path="/prospection/pije/new" element={<NewSearchProfile />} />
-            <Route path="/prospection/conq" element={<Placeholder />} />
-            <Route path="/prospection/recherches" element={<Recherches />} />
-            <Route path="/prospection/inbox" element={<ProspectionPije />} />
+            <Route path="/prospection/pije" element={<Navigate to="/recherches?mode=pije" replace />} />
+            <Route path="/prospection/pije/new" element={<Navigate to="/recherches/new?mode=pije" replace />} />
+            <Route path="/prospection/conq" element={<Navigate to="/recherches?mode=conq" replace />} />
+            <Route path="/prospection/conq/new" element={<Navigate to="/recherches/new?mode=conq" replace />} />
+            <Route path="/prospection/recherches" element={<Navigate to="/recherches" replace />} />
+            <Route path="/prospection/recherches/:id/edit" element={<EditSearch />} />
+            <Route path="/prospection/inbox" element={<Navigate to="/prospection/pije" replace />} />
+            <Route path="/recherches" element={<RecherchesModule />} />
+            <Route path="/recherches/new" element={<RecherchesNew />} />
+            <Route path="/recherches/:id" element={<EditSearch />} />
+            <Route path="/recherches/:id/resultats" element={<SearchResults />} />
             
             {/* Biens */}
             <Route path="/biens" element={<Biens />} />
