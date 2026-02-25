@@ -176,6 +176,17 @@ export function getRunDebug(runId: number) {
   return apiFetch(`/api/runs/${runId}/debug`);
 }
 
+export function getHumanTasks(status: "open" | "resolved" | "all" = "open", limit = 100) {
+  return apiFetch(`/api/human_tasks?status=${encodeURIComponent(status)}&limit=${limit}`);
+}
+
+export function resolveHumanTask(taskId: number, solveNotes?: string) {
+  return apiFetch(`/api/human_tasks/${taskId}/resolve`, {
+    method: "PATCH",
+    body: JSON.stringify({ solve_notes: solveNotes || null }),
+  });
+}
+
 export function rerunPlatform(searchId: number, platform: string) {
   return apiFetch(`/api/v2/searches/${searchId}/runs/${platform}`, {
     method: "POST",

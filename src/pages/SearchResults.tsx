@@ -145,6 +145,7 @@ function ManualActions({
   onRerun?: () => Promise<void>;
   rerunLoading?: boolean;
 }) {
+  const { toast } = useToast();
   const [opening, setOpening] = useState(false);
   const [activating, setActivating] = useState(false);
   const show = shouldShowManualActions(status, lastError);
@@ -184,6 +185,8 @@ function ManualActions({
           ok?: boolean;
           blocked?: boolean;
           error_code?: string | null;
+          next_action?: string | null;
+          detail?: string | null;
         };
         if (!initRes?.ok) {
           toast({
@@ -196,7 +199,7 @@ function ManualActions({
             description:
               initRes?.error_code === "SELOGER_TEMP_BLOCKED"
                 ? "Accès temporairement restreint. Réessaie plus tard ou change de réseau."
-                : "Session manuelle non validée.",
+                : initRes?.next_action || initRes?.detail || "Session manuelle non validée.",
           });
           return;
         }

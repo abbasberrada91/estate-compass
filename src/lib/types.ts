@@ -142,3 +142,27 @@ export interface Task {
   created_at: string;
   updated_at: string;
 }
+
+export interface HumanTask {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  platform: "seloger" | "pap" | "leboncoin" | string;
+  run_id?: string | null;
+  status: "open" | "resolved" | string;
+  reason?: string | null;
+  reason_code?: string | null;
+  page_url?: string | null;
+  human_url?: string | null;
+  recommended_url?: string | null;
+  final_url?: string | null;
+  state_path?: string | null;
+  artifact_html?: string | null;
+  artifact_png?: string | null;
+  recommended_next_action?: string | null;
+  search_id?: number | null;
+  search_profile_id?: number | null;
+  run_status?: string | null;
+  solve_notes?: string | null;
+  solved_at?: string | null;
+}
